@@ -1,6 +1,7 @@
 package com.algaworks.algadelivery.delivery.tracking.domain.model;
 
-import com.algaworks.algadelivery.delivery.tracking.domain.model.exception.DomainException;
+import com.algaworks.algadelivery.delivery.tracking.domain.exception.DomainException;
+import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -8,12 +9,14 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.*;
 
+@Entity
 @NoArgsConstructor(access = AccessLevel.PACKAGE)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Setter(AccessLevel.PRIVATE)
 @Getter
 public class Delivery {
 
+    @Id
     @EqualsAndHashCode.Include
     private UUID id;
 
@@ -32,9 +35,30 @@ public class Delivery {
 
     private Integer totalItems;
 
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "zipCode", column = @Column(name = "sender_zip_code")),
+            @AttributeOverride(name = "street", column = @Column(name = "sender_street")),
+            @AttributeOverride(name = "number", column = @Column(name = "sender_number")),
+            @AttributeOverride(name = "complement", column = @Column(name = "sender_complement")),
+            @AttributeOverride(name = "name", column = @Column(name = "sender_name")),
+            @AttributeOverride(name = "phone", column = @Column(name = "sender_phone"))
+
+    })
     private ContactPoint sender;
+
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "zipCode", column = @Column(name = "recipient_zip_code")),
+            @AttributeOverride(name = "street", column = @Column(name = "recipient_street")),
+            @AttributeOverride(name = "number", column = @Column(name = "recipient_number")),
+            @AttributeOverride(name = "complement", column = @Column(name = "recipient_complement")),
+            @AttributeOverride(name = "name", column = @Column(name = "recipient_name")),
+            @AttributeOverride(name = "phone", column = @Column(name = "recipient_phone"))
+    })
     private ContactPoint recipient;
 
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "delivery")
     private List<Item> items = new ArrayList<>();
 
     //método static facture para estanciar o delivey no status draft
@@ -50,13 +74,13 @@ public class Delivery {
     }
 
     public UUID addItem(String name, int quantity){
-       Item item = Item.brandNew(name, quantity);
+       Item item = Item.brandNew(name, quantity, this);
        items.add(item);
        calculateTotalItems();
        return item.getId();
     }
 
-    public void removeItem(UUID itemId){
+    public void removeItems(UUID itemId){
         items.removeIf(item -> item.getId().equals(itemId));
         calculateTotalItems();
     }
@@ -84,7 +108,7 @@ public class Delivery {
     }
 
     public void markAsDelivered(){
-        this.changeStatusTo(DeliveryStatus.DELIVERY);
+        this.changeStatusTo(DeliveryStatus.DELIVERED);
         this.setFulfilledAt(OffsetDateTime.now());
     }
 
